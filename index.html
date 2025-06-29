@@ -3,434 +3,516 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive DSA Roadmap: Java Edition</title>
+    <title>Interactive DSA Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chosen Palette: Calm Harmony (Light Beige, Stone Gray, Muted Teal) -->
-    <!-- Application Structure Plan: An interactive dashboard with a collapsible accordion layout for topics and sub-topics. Key interactions include progress tracking via checklists, dynamic progress bars, and difficulty filtering. This structure is chosen to transform the static, linear document into a manageable, engaging, and goal-oriented learning tool, preventing user overwhelm and promoting focused study. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Slate & Teal -->
+    <!-- Application Structure Plan: The static DSA sheet is transformed into a dynamic dashboard. A persistent sidebar allows for non-linear topic navigation, a major usability improvement over a long scroll. The main content area features a dashboard header with an overall progress donut chart for motivation, followed by the selected topic's details. Key interactions include topic selection, difficulty filtering, and progress tracking via checkboxes. This structure turns passive content consumption into an active, managed learning experience, helping users visually track their preparation journey and focus on specific areas. -->
     <!-- Visualization & Content Choices: 
-        - Roadmap Hierarchy -> Goal: Organize -> Viz/Method: Accordion Layout -> Interaction: Click to expand/collapse -> Justification: Provides better information architecture and reduces cognitive load compared to a long document.
-        - Topic Progress -> Goal: Inform/Motivate -> Viz/Method: Dynamic Progress Bar (HTML/CSS/JS) -> Interaction: Automatically updates on user action -> Justification: Offers immediate, visual feedback on progress, which is highly motivating.
-        - Question List -> Goal: Inform/Interact -> Viz/Method: Interactive Checklist -> Interaction: Click to mark as complete -> Justification: Enables active participation and clear tracking of completed tasks.
-        - Question Difficulty -> Goal: Compare/Filter -> Viz/Method: Filter Buttons & Colored Badges -> Interaction: Click to filter displayed questions -> Justification: Allows for targeted learning sessions focused on a specific difficulty level.
-        - Key Concepts -> Goal: Inform -> Viz/Method: Styled list with icons -> Interaction: Static display -> Justification: Clearly presents core patterns for each topic in an easily scannable format.
+        - Overall Progress: Report Info -> Total questions completed vs. total. Goal -> Inform/Motivate. Viz -> Donut Chart. Interaction -> Updates on any question completion. Justification -> Visually engaging summary of overall effort. Library -> Chart.js.
+        - Topic Navigation: Report Info -> List of DSA topics. Goal -> Organize/Navigate. Viz -> Vertical navigation bar. Interaction -> Click to display topic content. Justification -> Provides quick, non-linear access to all sections. Method -> HTML/CSS/JS.
+        - Question Lists: Report Info -> Problem statements per topic. Goal -> Inform/Track. Viz -> Interactive checklist. Interaction -> Checkboxes to mark completion, buttons to filter by difficulty. Justification -> Allows active progress management and focused practice. Method -> HTML/CSS/JS.
+        - Progress Bars: Report Info -> Completed questions per topic. Goal -> Inform/Compare. Viz -> Horizontal progress bars. Interaction -> Updates on question completion within the topic. Justification -> Provides granular, per-topic feedback. Method -> HTML/CSS/JS.
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
-        body {
-            background-color: #FDFBF5; /* A very light, warm beige */
-            font-family: 'Inter', sans-serif;
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar-link { transition: all 0.2s ease-in-out; }
+        .sidebar-link:hover, .sidebar-link.active {
+            background-color: #e2e8f0; /* slate-200 */
+            color: #1e293b; /* slate-800 */
+            transform: translateX(4px);
         }
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        .progress-bar-bg {
-            background-color: #EAE8E1; /* Muted background for progress bar */
-        }
-        .progress-bar-fg {
-            background-color: #0d9488; /* Muted Teal */
-            transition: width 0.5s ease-in-out;
-        }
-        .accordion-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.5s cubic-bezier(0, 1, 0, 1);
-        }
-        .accordion-content.open {
-            max-height: 5000px; /* Large enough for content */
-            transition: max-height 1s ease-in-out;
-        }
-        .difficulty-badge {
-            font-size: 0.7rem;
-            padding: 0.1rem 0.5rem;
-            border-radius: 9999px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        .difficulty-easy { background-color: #dcfce7; color: #166534; }
-        .difficulty-medium { background-color: #fef9c3; color: #854d0e; }
-        .difficulty-hard { background-color: #fee2e2; color: #991b1b; }
-
-        .filter-btn.active {
-            background-color: #0d9488;
+        .difficulty-btn.active {
+            background-color: #0d9488; /* teal-600 */
             color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .question-item.completed label {
-            text-decoration: line-through;
-            color: #9ca3af;
         }
     </style>
 </head>
-<body class="text-stone-800">
+<body class="bg-slate-50 text-slate-700">
 
-    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-stone-900">Interactive DSA Roadmap</h1>
-            <p class="text-lg text-stone-600 mt-2">Master Data Structures & Algorithms with Java</p>
-        </header>
+    <div class="flex h-screen bg-slate-100">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-64 bg-white shadow-lg flex-shrink-0 hidden md:flex md:flex-col">
+            <div class="h-16 flex items-center justify-center border-b">
+                <h1 class="text-xl font-bold text-slate-800">DSA Tracker</h1>
+            </div>
+            <nav id="topic-nav" class="flex-1 p-4 space-y-2 overflow-y-auto"></nav>
+        </aside>
 
-        <div class="bg-white/60 backdrop-blur-sm rounded-2xl shadow-lg p-6 mb-8 sticky top-4 z-10">
-            <h3 class="text-lg font-semibold mb-3 text-stone-700">Overall Progress</h3>
-            <div class="progress-bar-bg w-full h-4 rounded-full overflow-hidden">
-                <div id="overall-progress-bar" class="progress-bar-fg h-full rounded-full" style="width: 0%;"></div>
-            </div>
-            <div class="text-right mt-1 text-sm font-semibold text-stone-600">
-                <span id="overall-progress-text">0 / 0</span> Questions Completed
-            </div>
-             <div id="filter-controls" class="mt-4 flex flex-wrap gap-2 justify-center">
-                <button data-filter="all" class="filter-btn active px-4 py-1.5 text-sm font-medium rounded-full bg-stone-100 text-stone-700 hover:bg-stone-200 transition">All</button>
-                <button data-filter="easy" class="filter-btn px-4 py-1.5 text-sm font-medium rounded-full bg-stone-100 text-stone-700 hover:bg-stone-200 transition">Easy</button>
-                <button data-filter="medium" class="filter-btn px-4 py-1.5 text-sm font-medium rounded-full bg-stone-100 text-stone-700 hover:bg-stone-200 transition">Medium</button>
-                <button data-filter="hard" class="filter-btn px-4 py-1.5 text-sm font-medium rounded-full bg-stone-100 text-stone-700 hover:bg-stone-200 transition">Hard</button>
-            </div>
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm flex items-center justify-between p-4">
+                 <button id="menu-btn" class="md:hidden text-slate-600 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <h2 id="main-header" class="text-2xl font-bold text-slate-800"></h2>
+                 <div class="w-10"></div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-4 md:p-8">
+                <div id="app-content">
+                    <!-- Dashboard Welcome / Overall Progress -->
+                    <div id="dashboard-view" class="bg-white p-6 rounded-lg shadow-md mb-8">
+                        <h3 class="text-2xl font-bold text-slate-800 mb-2">Welcome to Your DSA Journey!</h3>
+                        <p class="text-slate-600 mb-6">Select a topic from the sidebar to begin. Track your progress for each question to see how far you've come. This interactive dashboard is designed to help you methodically prepare for your Java coding interviews.</p>
+                        <div class="grid md:grid-cols-2 gap-6 items-center">
+                            <div>
+                                <h4 class="text-lg font-semibold text-slate-700 mb-3">Overall Progress</h4>
+                                <div id="overall-progress-bar-container" class="w-full bg-slate-200 rounded-full h-6">
+                                    <div id="overall-progress-bar" class="bg-teal-500 h-6 rounded-full text-center text-white text-sm leading-6 transition-all duration-500"></div>
+                                </div>
+                                <p id="overall-progress-text" class="text-center mt-2 text-slate-600 font-medium"></p>
+                            </div>
+                            <div class="chart-container" style="position: relative; max-width: 250px; margin: auto; height: 250px;">
+                                <canvas id="overall-progress-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Topic Content will be injected here -->
+                    <div id="topic-view" class="hidden">
+                        <div id="topic-details" class="bg-white p-6 rounded-lg shadow-md mb-6"></div>
+                        <div id="topic-questions" class="bg-white p-6 rounded-lg shadow-md"></div>
+                    </div>
+                </div>
+            </main>
         </div>
-
-        <main id="roadmap-container" class="space-y-4">
-            <!-- Roadmap content will be generated by JavaScript -->
-        </main>
-
     </div>
 
-    <script>
-        const roadmapData = [
-            {
-                id: 'fundamentals',
-                title: 'I. Fundamentals',
-                topics: [
-                    { 
-                        id: 'arrays', title: 'Arrays', 
-                        description: "A collection of elements stored at contiguous memory locations. The most basic data structure.",
-                        patterns: ["Two Pointers", "Sliding Window", "Prefix Sum", "Frequency Counting"],
-                        questions: [
-                            { name: "Two Sum", difficulty: "easy" },
-                            { name: "Contains Duplicate", difficulty: "easy" },
-                            { name: "Best Time to Buy and Sell Stock", difficulty: "easy" },
-                            { name: "Move Zeroes", difficulty: "easy" },
-                            { name: "Product of Array Except Self", difficulty: "medium" },
-                            { name: "Maximum Subarray", difficulty: "medium" },
-                            { name: "3Sum", difficulty: "medium" },
-                            { name: "Container With Most Water", difficulty: "medium" },
-                            { name: "Trapping Rain Water", difficulty: "hard" },
-                            { name: "Median of Two Sorted Arrays", difficulty: "hard" },
-                        ] 
-                    },
-                    {
-                        id: 'strings', title: 'Strings',
-                        description: "A sequence of characters, often treated as character arrays with special properties.",
-                        patterns: ["Two Pointers", "Sliding Window", "Character Frequency", "String Builders"],
-                        questions: [
-                            { name: "Valid Palindrome", difficulty: "easy" },
-                            { name: "Reverse String", difficulty: "easy" },
-                            { name: "Valid Parentheses", difficulty: "easy" },
-                            { name: "Group Anagrams", difficulty: "medium" },
-                            { name: "Longest Substring Without Repeating Characters", difficulty: "medium" },
-                            { name: "Longest Palindromic Substring", difficulty: "medium" },
-                            { name: "Palindromic Substrings", difficulty: "medium" },
-                            { name: "Minimum Window Substring", difficulty: "hard" },
-                        ]
-                    }
-                ]
-            },
-            {
-                id: 'linear',
-                title: 'II. Linear Data Structures',
-                topics: [
-                    {
-                        id: 'linked-lists', title: 'Linked Lists',
-                        description: "A linear data structure where elements are linked using pointers, not stored contiguously.",
-                        patterns: ["Traversal", "Dummy Node", "Two Pointers (Slow/Fast)", "Reversal"],
-                        questions: [
-                            { name: "Reverse Linked List", difficulty: "easy" },
-                            { name: "Merge Two Sorted Lists", difficulty: "easy" },
-                            { name: "Linked List Cycle", difficulty: "easy" },
-                            { name: "Remove Nth Node From End of List", difficulty: "medium" },
-                            { name: "Add Two Numbers", difficulty: "medium" },
-                            { name: "Reorder List", difficulty: "medium" },
-                            { name: "Copy List with Random Pointer", difficulty: "medium" },
-                            { name: "Merge k Sorted Lists", difficulty: "hard" },
-                            { name: "Reverse Nodes in k-Group", difficulty: "hard" },
-                        ]
-                    },
-                    {
-                        id: 'stacks', title: 'Stacks',
-                        description: "A LIFO (Last-In, First-Out) data structure.",
-                        patterns: ["LIFO Principle", "Matching Parentheses", "Monotonic Stack", "Expression Evaluation"],
-                        questions: [
-                            { name: "Valid Parentheses", difficulty: "easy" },
-                            { name: "Min Stack", difficulty: "medium" },
-                            { name: "Daily Temperatures", difficulty: "medium" },
-                            { name: "Decode String", difficulty: "medium" },
-                            { name: "Largest Rectangle in Histogram", difficulty: "hard" },
-                        ]
-                    },
-                    {
-                        id: 'queues', title: 'Queues',
-                        description: "A FIFO (First-In, First-Out) data structure.",
-                        patterns: ["FIFO Principle", "Breadth-First Search (BFS)", "Level Order Traversal"],
-                        questions: [
-                            { name: "Implement Stack using Queues", difficulty: "easy" },
-                            { name: "Number of Recent Calls", difficulty: "easy" },
-                            { name: "Design Circular Queue", difficulty: "medium" },
-                            { name: "Rotting Oranges", difficulty: "medium" },
-                        ]
-                    }
-                ]
-            },
-            {
-                id: 'trees',
-                title: 'III. Non-Linear Data Structures (Trees)',
-                topics: [
-                    {
-                        id: 'binary-trees', title: 'Binary Trees',
-                        description: "A hierarchical data structure where each node has at most two children.",
-                        patterns: ["DFS (Pre-order, In-order, Post-order)", "BFS (Level Order)", "Recursion"],
-                        questions: [
-                            { name: "Maximum Depth of Binary Tree", difficulty: "easy" },
-                            { name: "Same Tree", difficulty: "easy" },
-                            { name: "Invert Binary Tree", difficulty: "easy" },
-                            { name: "Subtree of Another Tree", difficulty: "easy" },
-                            { name: "Binary Tree Level Order Traversal", difficulty: "medium" },
-                            { name: "Lowest Common Ancestor of a Binary Tree", difficulty: "medium" },
-                            { name: "Construct Binary Tree from Preorder and Inorder Traversal", difficulty: "medium" },
-                            { name: "Binary Tree Right Side View", difficulty: "medium" },
-                            { name: "Maximum Path Sum", difficulty: "hard" },
-                            { name: "Serialize and Deserialize Binary Tree", difficulty: "hard" },
-                        ]
-                    },
-                    {
-                        id: 'bst', title: 'Binary Search Trees (BSTs)',
-                        description: "A binary tree with an ordering property for efficient searching.",
-                        patterns: ["BST Property", "In-order Traversal gives sorted", "Validation", "Successor/Predecessor"],
-                        questions: [
-                            { name: "Validate Binary Search Tree", difficulty: "medium" },
-                            { name: "Kth Smallest Element in a BST", difficulty: "medium" },
-                            { name: "Lowest Common Ancestor of a BST", difficulty: "easy" },
-                            { name: "Delete Node in a BST", difficulty: "medium" },
-                        ]
-                    },
-                    {
-                        id: 'heaps', title: 'Heaps (Priority Queues)',
-                        description: "A tree-based structure satisfying the heap property, for efficient min/max retrieval.",
-                        patterns: ["Maintaining Order", "K-th Largest/Smallest", "Merging/Sorting"],
-                        questions: [
-                            { name: "Kth Largest Element in an Array", difficulty: "medium" },
-                            { name: "Top K Frequent Elements", difficulty: "medium" },
-                            { name: "Find Median from Data Stream", difficulty: "hard" },
-                        ]
-                    }
-                ]
-            },
-            {
-                id: 'graphs',
-                title: 'IV. Graphs',
-                topics: [
-                    {
-                        id: 'graph-traversals', title: 'Graph Representations & Traversals',
-                        description: "A set of vertices and edges. Traversal involves visiting all nodes.",
-                        patterns: ["Adjacency List/Matrix", "BFS", "DFS", "Topological Sort", "Cycle Detection"],
-                        questions: [
-                           { name: "Number of Islands", difficulty: "medium" },
-                           { name: "Clone Graph", difficulty: "medium" },
-                           { name: "Course Schedule", difficulty: "medium" },
-                           { name: "Pacific Atlantic Water Flow", difficulty: "medium" },
-                           { name: "Word Ladder", difficulty: "hard" },
-                           { name: "Alien Dictionary", difficulty: "hard" },
-                        ]
-                    },
-                ]
-            },
-            {
-                id: 'algorithms',
-                title: 'V. Algorithms',
-                topics: [
-                    {
-                        id: 'dp', title: 'Dynamic Programming (DP)',
-                        description: "An optimization technique for solving complex problems by breaking them down into simpler subproblems.",
-                        patterns: ["Memoization (Top-down)", "Tabulation (Bottom-up)", "1D/2D DP", "Knapsack"],
-                        questions: [
-                            { name: "Climbing Stairs", difficulty: "easy" },
-                            { name: "House Robber", difficulty: "medium" },
-                            { name: "Coin Change", difficulty: "medium" },
-                            { name: "Longest Increasing Subsequence", difficulty: "medium" },
-                            { name: "Longest Common Subsequence", difficulty: "medium" },
-                            { name: "Word Break", difficulty: "medium" },
-                            { name: "Unique Paths", difficulty: "medium" },
-                            { name: "Jump Game", difficulty: "medium" },
-                            { name: "Edit Distance", difficulty: "hard" },
-                            { name: "Best Time to Buy and Sell Stock with Cooldown", difficulty: "medium" },
-                            { name: "Partition Equal Subset Sum", difficulty: "medium" },
-                        ]
-                    },
-                    {
-                        id: 'backtracking', title: 'Backtracking',
-                        description: "An algorithmic technique for solving problems recursively by trying to build a solution incrementally.",
-                        patterns: ["Decision Tree", "Choice, Constraints, Goal", "Permutations/Combinations"],
-                        questions: [
-                            { name: "Subsets", difficulty: "medium" },
-                            { name: "Permutations", difficulty: "medium" },
-                            { name: "Combination Sum", difficulty: "medium" },
-                            { name: "Generate Parentheses", difficulty: "medium" },
-                            { name: "Word Search", difficulty: "medium" },
-                            { name: "N-Queens", difficulty: "hard" },
-                        ]
-                    },
-                    {
-                        id: 'greedy', title: 'Greedy Algorithms',
-                        description: "Makes a locally optimal choice at each step with the hope of finding a global optimum.",
-                        patterns: ["Local Optimal Choices", "Sorting", "Interval Scheduling"],
-                        questions: [
-                            { name: "Jump Game", difficulty: "medium" },
-                            { name: "Gas Station", difficulty: "medium" },
-                            { name: "Non-overlapping Intervals", difficulty: "medium" },
-                            { name: "Minimum Number of Arrows to Burst Balloons", difficulty: "medium" },
-                        ]
-                    }
-                ]
-            }
-        ];
+<script>
+document.addEventListener('DOMContentLoaded', () => {
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const roadmapContainer = document.getElementById('roadmap-container');
-            const state = { completed: new Set(), currentFilter: 'all' };
+    const dsaData = [
+        {
+            id: 'arrays', title: 'Arrays',
+            description: "Arrays are fundamental data structures storing fixed-size sequential collections of elements of the same type.",
+            concepts: ['Fixed size, contiguous memory', 'Indexing (0 to n-1)', 'Traversals, insertion, deletion (costly)', 'Two-Pointer technique', 'Prefix/Suffix Sums', 'Sliding Window'],
+            questions: [
+                { text: 'Find Max/Min Element', difficulty: 'Easy'},
+                { text: 'Reverse an Array', difficulty: 'Easy'},
+                { text: 'Contains Duplicate', difficulty: 'Easy'},
+                { text: 'Two Sum', difficulty: 'Easy'},
+                { text: 'Rotate Array', difficulty: 'Medium'},
+                { text: 'Maximum Subarray (Kadane\'s)', difficulty: 'Medium'},
+                { text: 'Merge Intervals', difficulty: 'Medium'},
+                { text: 'Container With Most Water', difficulty: 'Medium'},
+                { text: 'First Missing Positive', difficulty: 'Hard'},
+                { text: 'Trapping Rain Water', difficulty: 'Hard'},
+            ]
+        },
+        {
+            id: 'strings', title: 'Strings',
+            description: "Strings are sequences of characters. In Java, strings are immutable.",
+            concepts: ['Immutability in Java', 'String vs StringBuilder/StringBuffer', 'Common string methods', 'Anagrams, Palindromes', 'Character frequency counts'],
+            questions: [
+                { text: 'Reverse a String', difficulty: 'Easy'},
+                { text: 'Check for Palindrome', difficulty: 'Easy'},
+                { text: 'Valid Anagram', difficulty: 'Easy'},
+                { text: 'Longest Substring Without Repeating Characters', difficulty: 'Medium'},
+                { text: 'Group Anagrams', difficulty: 'Medium'},
+                { text: 'Valid Parentheses', difficulty: 'Medium'},
+                { text: 'Minimum Window Substring', difficulty: 'Hard'},
+            ]
+        },
+        {
+            id: 'linked_lists', title: 'Linked Lists',
+            description: "A linear data structure where elements are not stored at contiguous memory locations but are linked using pointers.",
+            concepts: ['Nodes (data + next)', 'Singly, Doubly, Circular', 'Traversal, insertion, deletion', 'Cycle detection (Floyd\'s Tortoise and Hare)', 'Pointer manipulation'],
+            questions: [
+                { text: 'Reverse a Linked List', difficulty: 'Easy' },
+                { text: 'Merge Two Sorted Lists', difficulty: 'Easy' },
+                { text: 'Delete Node in a Linked List', difficulty: 'Easy' },
+                { text: 'Detect Cycle in Linked List', difficulty: 'Medium' },
+                { text: 'Find Middle of Linked List', difficulty: 'Medium' },
+                { text: 'Remove Nth Node From End of List', difficulty: 'Medium' },
+                { text: 'Reorder List', difficulty: 'Medium' },
+                { text: 'Merge k Sorted Lists', difficulty: 'Hard' },
+                { text: 'Reverse Nodes in k-Group', difficulty: 'Hard' },
+            ]
+        },
+        {
+            id: 'stack_queue', title: 'Stack & Queue',
+            description: "Stack: A LIFO (Last-In, First-Out) data structure. Queue: A FIFO (First-In, First-Out) data structure.",
+            concepts: ['Stack: push, pop, peek', 'Queue: offer, poll, peek', 'Deque (Double-Ended Queue)', 'Applications: BFS, DFS, expression evaluation'],
+            questions: [
+                { text: 'Implement Stack using Queues', difficulty: 'Easy' },
+                { text: 'Implement Queue using Stacks', difficulty: 'Easy' },
+                { text: 'Daily Temperatures (Monotonic Stack)', difficulty: 'Medium' },
+                { text: 'Largest Rectangle in Histogram', difficulty: 'Medium' },
+                { text: 'Sliding Window Maximum (Deque)', difficulty: 'Hard' },
+            ]
+        },
+        {
+            id: 'hashing', title: 'Hashing',
+            description: "Used for efficient key-value pair storage and retrieval, and for checking presence of an element.",
+            concepts: ['Hash function, collision resolution', 'HashMap, LinkedHashMap, TreeMap', 'HashSet, LinkedHashSet, TreeSet', 'Time complexity: O(1) average'],
+            questions: [
+                { text: 'Two Sum (HashMap solution)', difficulty: 'Easy' },
+                { text: 'Contains Duplicate (HashSet solution)', difficulty: 'Easy' },
+                { text: 'Unique Number of Occurrences', difficulty: 'Easy' },
+                { text: 'Longest Consecutive Sequence', difficulty: 'Medium' },
+                { text: 'Four Sum', difficulty: 'Medium' },
+                { text: 'Subarray Sum Equals K', difficulty: 'Hard' },
+            ]
+        },
+        {
+            id: 'trees', title: 'Trees',
+            description: "A hierarchical data structure with a root, nodes, and edges connecting them.",
+            concepts: ['Root, child, parent, leaf', 'Binary Tree, Binary Search Tree (BST)', 'Traversals: Inorder, Preorder, Postorder, Level Order', 'Height, depth, diameter', 'Lowest Common Ancestor (LCA)'],
+            questions: [
+                { text: 'Invert Binary Tree', difficulty: 'Easy' },
+                { text: 'Maximum Depth of Binary Tree', difficulty: 'Easy' },
+                { text: 'Same Tree', difficulty: 'Easy' },
+                { text: 'Validate Binary Search Tree', difficulty: 'Medium' },
+                { text: 'Binary Tree Level Order Traversal', difficulty: 'Medium' },
+                { text: 'Lowest Common Ancestor of a BST', difficulty: 'Medium' },
+                { text: 'Construct BT from Preorder & Inorder', difficulty: 'Medium' },
+                { text: 'Binary Tree Maximum Path Sum', difficulty: 'Hard' },
+                { text: 'Serialize and Deserialize Binary Tree', difficulty: 'Hard' },
+            ]
+        },
+        {
+            id: 'heaps', title: 'Heaps (Priority Queues)',
+            description: "A specialized tree-based data structure that satisfies the heap property.",
+            concepts: ['Min-Heap and Max-Heap', 'Implemented using arrays', 'Java PriorityQueue', 'Applications: K-th largest/smallest'],
+            questions: [
+                { text: 'Kth Largest Element in a Stream', difficulty: 'Easy' },
+                { text: 'Top K Frequent Elements', difficulty: 'Medium' },
+                { text: 'Kth Smallest Element in a Sorted Matrix', difficulty: 'Medium' },
+                { text: 'Meeting Rooms II', difficulty: 'Medium' },
+                { text: 'Find Median from Data Stream', difficulty: 'Hard' },
+            ]
+        },
+        {
+            id: 'graphs', title: 'Graphs',
+            description: "A non-linear data structure consisting of nodes (vertices) and edges.",
+            concepts: ['Vertices, Edges (Directed/Undirected)', 'Adjacency Matrix/List', 'Traversals: BFS, DFS', 'Topological Sort', 'Shortest Path: Dijkstra, Bellman-Ford', 'MST: Prim, Kruskal', 'Union-Find'],
+            questions: [
+                { text: 'Number of Islands', difficulty: 'Easy' },
+                { text: 'Find if Path Exists in Graph', difficulty: 'Easy' },
+                { text: 'Clone Graph', difficulty: 'Medium' },
+                { text: 'Pacific Atlantic Water Flow', difficulty: 'Medium' },
+                { text: 'Course Schedule', difficulty: 'Medium' },
+                { text: 'Network Delay Time', difficulty: 'Medium' },
+                { text: 'Alien Dictionary', difficulty: 'Hard' },
+                { text: 'Cheapest Flights Within K Stops', difficulty: 'Hard' },
+            ]
+        },
+        {
+            id: 'dynamic_programming', title: 'Dynamic Programming',
+            description: "A method for solving complex problems by breaking them down into simpler, overlapping subproblems.",
+            concepts: ['Overlapping Subproblems', 'Optimal Substructure', 'Memoization (Top-Down)', 'Tabulation (Bottom-Up)'],
+            questions: [
+                { text: 'Fibonacci Number', difficulty: 'Easy' },
+                { text: 'Climbing Stairs', difficulty: 'Easy' },
+                { text: 'Coin Change', difficulty: 'Medium' },
+                { text: 'Longest Increasing Subsequence', difficulty: 'Medium' },
+                { text: 'Unique Paths', difficulty: 'Medium' },
+                { text: 'House Robber', difficulty: 'Medium' },
+                { text: 'Longest Common Subsequence', difficulty: 'Hard' },
+                { text: 'Edit Distance', difficulty: 'Hard' },
+                { text: 'Word Break', difficulty: 'Hard' },
+            ]
+        },
+        {
+            id: 'greedy', title: 'Greedy Algorithms',
+            description: "An algorithmic paradigm that makes the locally optimal choice at each stage to find a global optimum.",
+            concepts: ['Making the best choice now', 'Proof of correctness (exchange arguments)', 'Not always optimal'],
+            questions: [
+                { text: 'Assign Cookies', difficulty: 'Easy' },
+                { text: 'Jump Game', difficulty: 'Medium' },
+                { text: 'Gas Station', difficulty: 'Medium' },
+                { text: 'Meeting Rooms II (Greedy)', difficulty: 'Medium' },
+                { text: 'Candy', difficulty: 'Hard' },
+            ]
+        },
+        {
+            id: 'backtracking', title: 'Backtracking',
+            description: "A general algorithm for finding solutions by incrementally building candidates and abandoning a path if it's not viable.",
+            concepts: ['DFS on a state-space tree', 'Recursion', 'Pruning the search space'],
+            questions: [
+                { text: 'Combinations', difficulty: 'Easy' },
+                { text: 'Subsets', difficulty: 'Medium' },
+                { text: 'Permutations', difficulty: 'Medium' },
+                { text: 'N-Queens', difficulty: 'Medium' },
+                { text: 'Sudoku Solver', difficulty: 'Medium' },
+                { text: 'Word Search II (Trie + DFS)', difficulty: 'Hard' },
+            ]
+        },
+        {
+            id: 'bit_manipulation', title: 'Bit Manipulation',
+            description: "Operating on individual bits within an integer, often for optimization.",
+            concepts: ['Bitwise operators: &, |, ^, ~, <<, >>', 'Checking/setting/clearing bits', 'Power of two, odd/even checks'],
+            questions: [
+                { text: 'Number of 1 Bits (Hamming weight)', difficulty: 'Easy' },
+                { text: 'Missing Number (XOR)', difficulty: 'Easy' },
+                { text: 'Single Number (XOR)', difficulty: 'Medium' },
+                { text: 'Subsets II (Bitmask)', difficulty: 'Medium' },
+                { text: 'Bitwise AND of Numbers Range', difficulty: 'Hard' },
+            ]
+        },
+        {
+            id: 'sorting_searching', title: 'Sorting & Searching',
+            description: "Fundamental operations for organizing and finding data efficiently.",
+            concepts: ['Comparison Sorts (Merge, Quick)', 'Non-Comparison Sorts (Counting, Radix)', 'Binary Search (on sorted data)', 'Stability, In-place sorting'],
+            questions: [
+                { text: 'Binary Search', difficulty: 'Easy' },
+                { text: 'First Bad Version', difficulty: 'Easy' },
+                { text: 'Merge Sorted Array', difficulty: 'Easy' },
+                { text: 'Search in Rotated Sorted Array', difficulty: 'Medium' },
+                { text: 'Kth Largest Element in an Array', difficulty: 'Medium' },
+                { text: 'Sort Colors (Dutch National Flag)', difficulty: 'Medium' },
+                { text: 'Median of Two Sorted Arrays', difficulty: 'Hard' },
+            ]
+        }
+    ];
 
-            const renderRoadmap = () => {
-                roadmapContainer.innerHTML = '';
-                let totalQuestions = 0;
-                
-                roadmapData.forEach(section => {
-                    let sectionCompleted = 0;
-                    let sectionTotal = 0;
-                    
-                    const sectionTopicsHTML = section.topics.map(topic => {
-                        let topicCompleted = 0;
-                        const topicTotal = topic.questions.length;
-                        sectionTotal += topicTotal;
-                        totalQuestions += topicTotal;
+    let appState = {
+        activeTopicId: null,
+        difficultyFilter: 'All',
+        progress: {}
+    };
 
-                        const questionsHTML = topic.questions.map(q => {
-                            const questionId = `${topic.id}-${q.name.replace(/\s+/g, '-')}`;
-                            const isCompleted = state.completed.has(questionId);
-                            if (isCompleted) {
-                                topicCompleted++;
-                            }
-                            const isVisible = state.currentFilter === 'all' || state.currentFilter === q.difficulty;
+    const topicNav = document.getElementById('topic-nav');
+    const mainHeader = document.getElementById('main-header');
+    const topicView = document.getElementById('topic-view');
+    const dashboardView = document.getElementById('dashboard-view');
+    const topicDetailsContainer = document.getElementById('topic-details');
+    const topicQuestionsContainer = document.getElementById('topic-questions');
+    const overallProgressChartCtx = document.getElementById('overall-progress-chart').getContext('2d');
+    let overallProgressChart;
 
-                            return `
-                                <div class="question-item pl-6 py-2 flex items-center ${isCompleted ? 'completed' : ''}" style="${!isVisible ? 'display: none;' : ''}" data-difficulty="${q.difficulty}">
-                                    <input type="checkbox" id="${questionId}" data-topic="${topic.id}" data-section="${section.id}" class="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" ${isCompleted ? 'checked' : ''}>
-                                    <label for="${questionId}" class="ml-3 text-stone-700 flex-grow">${q.name}</label>
-                                    <span class="difficulty-badge difficulty-${q.difficulty}">${q.difficulty}</span>
-                                </div>
-                            `;
-                        }).join('');
-                        
-                        sectionCompleted += topicCompleted;
-
-                        const patternsHTML = topic.patterns.map(p => `
-                            <li class="flex items-center text-sm text-stone-600">
-                                <span class="text-teal-600 mr-2">◆</span> ${p}
-                            </li>
-                        `).join('');
-
-                        return `
-                            <div class="bg-white rounded-lg overflow-hidden border border-stone-200/80 mb-3">
-                                <header class="p-4 cursor-pointer flex justify-between items-center accordion-toggle bg-stone-50/50" data-target="#content-${topic.id}">
-                                    <div>
-                                        <h4 class="font-semibold text-stone-800">${topic.title}</h4>
-                                        <p class="text-xs text-stone-500">${topic.description}</p>
-                                    </div>
-                                    <span class="text-xs font-semibold text-stone-600" id="progress-text-${topic.id}">${topicCompleted}/${topicTotal}</span>
-                                </header>
-                                <div class="accordion-content" id="content-${topic.id}">
-                                    <div class="p-4 border-t border-stone-200">
-                                        <h5 class="font-semibold text-sm mb-2 text-stone-700">Key Patterns & Concepts</h5>
-                                        <ul class="space-y-1 mb-4">
-                                            ${patternsHTML}
-                                        </ul>
-                                        <h5 class="font-semibold text-sm mb-2 text-stone-700">Practice Problems</h5>
-                                        <div class="space-y-1">
-                                            ${questionsHTML}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                    
-                    const sectionHTML = `
-                        <section id="${section.id}" class="bg-white/50 backdrop-blur-sm rounded-2xl shadow-md p-5">
-                            <h2 class="text-2xl font-bold mb-4 text-stone-800">${section.title}</h2>
-                            ${sectionTopicsHTML}
-                        </section>
-                    `;
-                    roadmapContainer.innerHTML += sectionHTML;
-                });
-                
-                updateOverallProgress();
-            };
-
-            const updateOverallProgress = () => {
-                const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
-                const total = allCheckboxes.length;
-                const completedCount = state.completed.size;
-                const percentage = total > 0 ? (completedCount / total) * 100 : 0;
-
-                document.getElementById('overall-progress-bar').style.width = `${percentage}%`;
-                document.getElementById('overall-progress-text').textContent = `${completedCount} / ${total}`;
-            };
-            
-            const updateTopicProgress = (topicId) => {
-                const topicCheckboxes = document.querySelectorAll(`#content-${topicId} input[type="checkbox"]`);
-                const total = topicCheckboxes.length;
-                let completedCount = 0;
-                topicCheckboxes.forEach(cb => {
-                    if (cb.checked) completedCount++;
-                });
-                 document.getElementById(`progress-text-${topicId}`).textContent = `${completedCount}/${total}`;
-            }
-
-            roadmapContainer.addEventListener('click', (e) => {
-                if (e.target.matches('input[type="checkbox"]')) {
-                    const id = e.target.id;
-                    const topicId = e.target.dataset.topic;
-                    if (e.target.checked) {
-                        state.completed.add(id);
-                        e.target.closest('.question-item').classList.add('completed');
-                    } else {
-                        state.completed.delete(id);
-                        e.target.closest('.question-item').classList.remove('completed');
-                    }
-                    updateOverallProgress();
-                    updateTopicProgress(topicId);
-                }
-
-                const accordionToggle = e.target.closest('.accordion-toggle');
-                if (accordionToggle) {
-                    const targetId = accordionToggle.dataset.target;
-                    const content = document.querySelector(targetId);
-                    content.classList.toggle('open');
-                }
-            });
-            
-            document.getElementById('filter-controls').addEventListener('click', (e) => {
-                if(e.target.tagName === 'BUTTON') {
-                    const filter = e.target.dataset.filter;
-                    state.currentFilter = filter;
-                    
-                    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-                    e.target.classList.add('active');
-
-                    document.querySelectorAll('.question-item').forEach(item => {
-                        if (filter === 'all' || item.dataset.difficulty === filter) {
-                            item.style.display = 'flex';
-                        } else {
-                            item.style.display = 'none';
-                        }
-                    });
-                }
-            });
-
-            renderRoadmap();
+    function initializeApp() {
+        loadProgress();
+        renderSidebar();
+        updateOverallProgress();
+        showDashboard();
+        
+        document.getElementById('menu-btn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('hidden');
         });
-    </script>
+    }
+    
+    function loadProgress() {
+        const savedProgress = JSON.parse(localStorage.getItem('dsaProgress'));
+        if (savedProgress) {
+            appState.progress = savedProgress;
+        } else {
+            dsaData.forEach(topic => {
+                appState.progress[topic.id] = {};
+                topic.questions.forEach((q, index) => {
+                    appState.progress[topic.id][index] = false;
+                });
+            });
+        }
+    }
+
+    function saveProgress() {
+        localStorage.setItem('dsaProgress', JSON.stringify(appState.progress));
+    }
+
+    function renderSidebar() {
+        topicNav.innerHTML = '';
+        dsaData.forEach(topic => {
+            const topicProgress = calculateTopicProgress(topic.id);
+            const link = document.createElement('a');
+            link.href = '#';
+            link.dataset.topicId = topic.id;
+            link.className = 'sidebar-link block p-3 rounded-lg text-slate-600 font-medium';
+            link.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span>${topic.title}</span>
+                    <span class="text-xs font-mono">${topicProgress.completed}/${topicProgress.total}</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-1 mt-1">
+                    <div class="bg-teal-500 h-1 rounded-full" style="width: ${topicProgress.percentage}%"></div>
+                </div>
+            `;
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                appState.activeTopicId = topic.id;
+                appState.difficultyFilter = 'All'; 
+                renderContent();
+            });
+            topicNav.appendChild(link);
+        });
+    }
+
+    function renderContent() {
+        const topic = dsaData.find(t => t.id === appState.activeTopicId);
+        if (!topic) {
+            showDashboard();
+            return;
+        }
+
+        dashboardView.classList.add('hidden');
+        topicView.classList.remove('hidden');
+
+        mainHeader.textContent = topic.title;
+        updateSidebarActiveState();
+
+        // Render Topic Details
+        let conceptsHTML = topic.concepts.map(c => `<li class="flex items-start"><span class="mr-2 text-teal-500 mt-1">&#10003;</span><span>${c}</span></li>`).join('');
+        topicDetailsContainer.innerHTML = `
+            <h3 class="text-xl font-bold text-slate-800 mb-3">Topic Overview</h3>
+            <p class="text-slate-600 mb-4">${topic.description}</p>
+            <h4 class="text-lg font-semibold text-slate-700 mb-2">Key Concepts</h4>
+            <ul class="space-y-1">${conceptsHTML}</ul>
+        `;
+        
+        renderQuestions(topic);
+    }
+    
+    function renderQuestions(topic) {
+        // Render Difficulty Filters
+        const difficulties = ['All', 'Easy', 'Medium', 'Hard'];
+        let filtersHTML = difficulties.map(d => `<button data-difficulty="${d}" class="difficulty-btn px-4 py-2 text-sm font-medium rounded-md bg-slate-200 text-slate-700 hover:bg-slate-300 transition">${d}</button>`).join('');
+
+        let questionsHTML = '';
+        const filteredQuestions = topic.questions.filter(q => appState.difficultyFilter === 'All' || q.difficulty === appState.difficultyFilter);
+
+        if (filteredQuestions.length === 0) {
+            questionsHTML = `<p class="text-slate-500 text-center py-4">No questions found for this difficulty.</p>`;
+        } else {
+             questionsHTML = filteredQuestions.map((q, originalIndex) => {
+                const globalIndex = topic.questions.findIndex(origQ => origQ.text === q.text);
+                const isChecked = appState.progress[topic.id][globalIndex];
+                const difficultyColor = {
+                    'Easy': 'text-green-600 bg-green-100',
+                    'Medium': 'text-yellow-600 bg-yellow-100',
+                    'Hard': 'text-red-600 bg-red-100'
+                };
+                return `
+                    <div class="flex items-center p-3 border-b border-slate-200 last:border-b-0 hover:bg-slate-50">
+                        <input type="checkbox" id="q-${topic.id}-${globalIndex}" data-topic-id="${topic.id}" data-q-index="${globalIndex}" class="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer" ${isChecked ? 'checked' : ''}>
+                        <label for="q-${topic.id}-${globalIndex}" class="ml-4 flex-1 text-slate-700 cursor-pointer">${q.text}</label>
+                        <span class="text-xs font-semibold px-2 py-1 rounded-full ${difficultyColor[q.difficulty]}">${q.difficulty}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        topicQuestionsContainer.innerHTML = `
+            <div class="flex flex-wrap gap-2 mb-4">
+                ${filtersHTML}
+            </div>
+            <div>
+                ${questionsHTML}
+            </div>
+        `;
+
+        // Add event listeners
+        topicQuestionsContainer.querySelectorAll('.difficulty-btn').forEach(btn => {
+            if (btn.dataset.difficulty === appState.difficultyFilter) {
+                btn.classList.add('active');
+            }
+            btn.addEventListener('click', () => {
+                appState.difficultyFilter = btn.dataset.difficulty;
+                renderQuestions(topic);
+            });
+        });
+
+        topicQuestionsContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const { topicId, qIndex } = e.target.dataset;
+                appState.progress[topicId][qIndex] = e.target.checked;
+                saveProgress();
+                renderSidebar();
+                updateOverallProgress();
+                updateSidebarActiveState(); // Keep the active state visually correct
+            });
+        });
+    }
+    
+    function showDashboard() {
+        appState.activeTopicId = null;
+        mainHeader.textContent = 'Dashboard';
+        topicView.classList.add('hidden');
+        dashboardView.classList.remove('hidden');
+        updateSidebarActiveState();
+    }
+    
+    function updateSidebarActiveState() {
+        document.querySelectorAll('#topic-nav a').forEach(a => {
+            if (a.dataset.topicId === appState.activeTopicId) {
+                a.classList.add('active');
+            } else {
+                a.classList.remove('active');
+            }
+        });
+    }
+
+    function calculateTopicProgress(topicId) {
+        const progressData = appState.progress[topicId];
+        const total = Object.keys(progressData).length;
+        const completed = Object.values(progressData).filter(Boolean).length;
+        return { completed, total, percentage: total > 0 ? (completed / total) * 100 : 0 };
+    }
+
+    function updateOverallProgress() {
+        let totalQuestions = 0;
+        let completedQuestions = 0;
+        dsaData.forEach(topic => {
+            const progress = calculateTopicProgress(topic.id);
+            totalQuestions += progress.total;
+            completedQuestions += progress.completed;
+        });
+        
+        const percentage = totalQuestions > 0 ? (completedQuestions / totalQuestions) * 100 : 0;
+        
+        const progressBar = document.getElementById('overall-progress-bar');
+        const progressText = document.getElementById('overall-progress-text');
+
+        progressBar.style.width = `${percentage}%`;
+        progressBar.textContent = `${Math.round(percentage)}%`;
+        progressText.textContent = `${completedQuestions} / ${totalQuestions} questions completed`;
+
+        updateChart(completedQuestions, totalQuestions - completedQuestions);
+    }
+    
+    function updateChart(completed, remaining) {
+        if (overallProgressChart) {
+            overallProgressChart.data.datasets[0].data = [completed, remaining];
+            overallProgressChart.update();
+        } else {
+            overallProgressChart = new Chart(overallProgressChartCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Completed', 'Remaining'],
+                    datasets: [{
+                        data: [completed, remaining],
+                        backgroundColor: ['#14b8a6', '#f1f5f9'], // teal-500, slate-100
+                        borderColor: ['#0f766e', '#e2e8f0'], // teal-700, slate-200
+                        borderWidth: 1,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                font: { size: 14 }
+                            }
+                        },
+                        tooltip: {
+                            enabled: true
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    initializeApp();
+});
+</script>
+
 </body>
 </html>
